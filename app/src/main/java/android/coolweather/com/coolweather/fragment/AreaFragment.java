@@ -1,12 +1,16 @@
 package android.coolweather.com.coolweather.fragment;
 
 import android.app.ProgressDialog;
+import android.content.Intent;
+import android.coolweather.com.coolweather.BuildConfig;
 import android.coolweather.com.coolweather.R;
+import android.coolweather.com.coolweather.activity.WeatherActivity;
 import android.coolweather.com.coolweather.bean.City;
 import android.coolweather.com.coolweather.bean.County;
 import android.coolweather.com.coolweather.bean.Province;
 import android.coolweather.com.coolweather.conf.Constant;
 import android.coolweather.com.coolweather.util.HttpUtil;
+import android.coolweather.com.coolweather.util.LogUtil;
 import android.coolweather.com.coolweather.util.Utility;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
@@ -51,6 +55,7 @@ public class AreaFragment extends Fragment {
     private int currentLevel = PROVINCE_LEVEL;
     private Province selectedProvince;
     private City selectedCity;
+    private County selectedCounty;
 
     @Nullable
     @Override
@@ -72,10 +77,25 @@ public class AreaFragment extends Fragment {
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 if (currentLevel == PROVINCE_LEVEL) {
                     selectedProvince = provinceList.get(position);
+                    if (BuildConfig.DEBUG) {
+                        LogUtil.info("AreaFragment.onItemClick() ## province name-->" + selectedProvince.getProvinceName() + ", province code-->" + selectedProvince.getProvinceCode());
+                    }
                     queryCities();
                 } else if (currentLevel == CITY_LEVEL) {
                     selectedCity = cityList.get(position);
+                    if (BuildConfig.DEBUG) {
+                        LogUtil.info("AreaFragment.onItemClick() ## city name-->" + selectedCity.getCityName() + ", city code-->" + selectedCity.getCityCode());
+                    }
                     queryCounties();
+                } else if (currentLevel == COUNTY_LEVEL) {
+                    selectedCounty = countyList.get(position);
+                    Intent intent = new Intent(getActivity(), WeatherActivity.class);
+                    intent.putExtra("weatherId", selectedCounty.getWeatherId());
+                    startActivity(intent);
+                    getActivity().finish();;
+                    if (BuildConfig.DEBUG) {
+                        LogUtil.info("AreaFragment.onItemClick() ## county name-->" + selectedCounty.getCountyName() + ", county weather id-->" + selectedCounty.getWeatherId());
+                    }
                 }
             }
         });
@@ -176,6 +196,9 @@ public class AreaFragment extends Fragment {
             public void onResponse(Call call, Response response) throws IOException {
                 if (response != null) {
                     String responseData = response.body().string();
+                    if (BuildConfig.DEBUG) {
+                        LogUtil.debug("AreaFragment.onResponse() ## type--> " + type + ", response-->" + responseData);
+                    }
                     boolean result = false;
                     if (type == PROVINCE_LEVEL) {
                         result = Utility.handleProvinceResponse(responseData);
