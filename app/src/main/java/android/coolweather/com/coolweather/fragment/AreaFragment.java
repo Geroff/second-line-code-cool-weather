@@ -4,6 +4,7 @@ import android.app.ProgressDialog;
 import android.content.Intent;
 import android.coolweather.com.coolweather.BuildConfig;
 import android.coolweather.com.coolweather.R;
+import android.coolweather.com.coolweather.activity.MainActivity;
 import android.coolweather.com.coolweather.activity.WeatherActivity;
 import android.coolweather.com.coolweather.bean.City;
 import android.coolweather.com.coolweather.bean.County;
@@ -89,12 +90,18 @@ public class AreaFragment extends Fragment {
                     queryCounties();
                 } else if (currentLevel == COUNTY_LEVEL) {
                     selectedCounty = countyList.get(position);
-                    Intent intent = new Intent(getActivity(), WeatherActivity.class);
-                    intent.putExtra("weatherId", selectedCounty.getWeatherId());
-                    startActivity(intent);
-                    getActivity().finish();;
-                    if (BuildConfig.DEBUG) {
-                        LogUtil.info("AreaFragment.onItemClick() ## county name-->" + selectedCounty.getCountyName() + ", county weather id-->" + selectedCounty.getWeatherId());
+                    String weatherId = selectedCounty.getWeatherId();
+                    if (getActivity() instanceof MainActivity) {
+                        Intent intent = new Intent(getActivity(), WeatherActivity.class);
+                        intent.putExtra(Constant.BUNDLE_WEATHER_ID_KEY, weatherId);
+                        startActivity(intent);
+                        getActivity().finish();
+                        if (BuildConfig.DEBUG) {
+                            LogUtil.info("AreaFragment.onItemClick() ## county name-->" + selectedCounty.getCountyName() + ", county weather id-->" + weatherId);
+                        }
+                    } else if (getActivity() instanceof WeatherActivity) {
+                        WeatherActivity weatherActivity = (WeatherActivity) getActivity();
+                        weatherActivity.updateWeather(weatherId);
                     }
                 }
             }
@@ -114,7 +121,7 @@ public class AreaFragment extends Fragment {
     }
 
     private void queryProvinces() {
-        tvTitle.setText("中国");
+        tvTitle.setText(getString(R.string.fragment_choose_area_default_title));
         btnBack.setVisibility(View.GONE);
         provinceList = DataSupport.findAll(Province.class);
         if (provinceList != null && provinceList.size() > 0) {
@@ -187,7 +194,7 @@ public class AreaFragment extends Fragment {
                     @Override
                     public void run() {
                         hideProgressDialog();
-                        Toast.makeText(getContext(), "加载数据失败", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(getContext(), getString(R.string.get_data_failed), Toast.LENGTH_SHORT).show();
                     }
                 });
             }
@@ -229,7 +236,7 @@ public class AreaFragment extends Fragment {
                     @Override
                     public void run() {
                         hideProgressDialog();
-                        Toast.makeText(getContext(), "加载数据失败", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(getContext(), getString(R.string.get_data_failed), Toast.LENGTH_SHORT).show();
                     }
                 });
             }
@@ -239,7 +246,7 @@ public class AreaFragment extends Fragment {
     private void showProgressDialog() {
         if (progressDialog == null) {
             progressDialog = new ProgressDialog(getActivity());
-            progressDialog.setMessage("正在加载数据");
+            progressDialog.setMessage(getString(R.string.loading_data));
             progressDialog.setCanceledOnTouchOutside(false);
         }
         progressDialog.show();

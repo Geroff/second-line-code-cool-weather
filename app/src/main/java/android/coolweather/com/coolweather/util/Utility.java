@@ -4,6 +4,7 @@ import android.coolweather.com.coolweather.bean.City;
 import android.coolweather.com.coolweather.bean.County;
 import android.coolweather.com.coolweather.bean.Province;
 import android.coolweather.com.coolweather.bean.Weather;
+import android.coolweather.com.coolweather.conf.Constant;
 import android.text.TextUtils;
 
 import com.google.gson.Gson;
@@ -27,8 +28,8 @@ public class Utility {
                         JSONObject provinceJSON = provinceJSONArray.getJSONObject(i);
                         if (provinceJSON != null) {
                             Province province = new Province();
-                            province.setProvinceName(provinceJSON.optString("name"));
-                            province.setProvinceCode(provinceJSON.optInt("id"));
+                            province.setProvinceName(provinceJSON.optString(Constant.JSON_KEY_NAME));
+                            province.setProvinceCode(provinceJSON.optInt(Constant.JSON_KEY_ID));
                             province.save();
                         }
                     }
@@ -53,8 +54,8 @@ public class Utility {
                         if (cityJSON != null) {
                             City city = new City();
                             city.setProvinceCode(provinceCode);
-                            city.setCityName(cityJSON.optString("name"));
-                            city.setCityCode(cityJSON.optInt("id"));
+                            city.setCityName(cityJSON.optString(Constant.JSON_KEY_NAME));
+                            city.setCityCode(cityJSON.optInt(Constant.JSON_KEY_ID));
                             city.save();
                         }
                     }
@@ -79,8 +80,8 @@ public class Utility {
                         if (countyJSON != null) {
                             County county = new County();
                             county.setCityCode(cityCode);
-                            county.setCountyName(countyJSON.optString("name"));
-                            county.setWeatherId(countyJSON.optString("weather_id"));
+                            county.setCountyName(countyJSON.optString(Constant.JSON_KEY_NAME));
+                            county.setWeatherId(countyJSON.optString(Constant.JSON_KEY_WEATHER_ID));
                             county.save();
                         }
                     }
@@ -96,7 +97,7 @@ public class Utility {
     public static Weather handleWeatherResponse(String response) {
         try {
             JSONObject hwWeatherJSON = new JSONObject(response);
-            JSONArray heWeatherJSONArray = hwWeatherJSON.optJSONArray("HeWeather");
+            JSONArray heWeatherJSONArray = hwWeatherJSON.optJSONArray(Constant.JSON_KEY_HE_WEATHER);
             if (heWeatherJSONArray != null) {
                 JSONObject weatherJSON = heWeatherJSONArray.optJSONObject(0);
                 if (weatherJSON != null) {

@@ -1,6 +1,7 @@
 package android.coolweather.com.coolweather.activity;
 
 import android.app.ProgressDialog;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.coolweather.com.coolweather.BuildConfig;
 import android.coolweather.com.coolweather.R;
@@ -9,6 +10,7 @@ import android.coolweather.com.coolweather.bean.Forecast;
 import android.coolweather.com.coolweather.bean.Now;
 import android.coolweather.com.coolweather.bean.Weather;
 import android.coolweather.com.coolweather.conf.Constant;
+import android.coolweather.com.coolweather.service.AutoUpdateService;
 import android.coolweather.com.coolweather.util.HttpUtil;
 import android.coolweather.com.coolweather.util.LogUtil;
 import android.coolweather.com.coolweather.util.Utility;
@@ -17,12 +19,14 @@ import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.annotation.Nullable;
+import android.support.v4.view.GravityCompat;
+import android.support.v4.widget.DrawerLayout;
+import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.view.Window;
-import android.view.WindowManager;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -54,7 +58,11 @@ public class WeatherActivity extends AppCompatActivity {
     private TextView tvSport;
     private LinearLayout llForecast;
     private ImageView ivBackgroundImg;
+    private SwipeRefreshLayout swipeRefreshLayout;
+    private DrawerLayout drawerLayout;
+    private Button btnChooseCity;
     private ProgressDialog progressDialog;
+    private String currentWeatherId;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -79,22 +87,44 @@ public class WeatherActivity extends AppCompatActivity {
         tvSport = (TextView) findViewById(R.id.tv_sport);
         llForecast = (LinearLayout) findViewById(R.id.ll_forecast);
         ivBackgroundImg = (ImageView) findViewById(R.id.iv_bing_pic);
+        drawerLayout = (DrawerLayout) findViewById(R.id.drawer_layout);
+        btnChooseCity = (Button) findViewById(R.id.btn_choose_city);
+        swipeRefreshLayout = (SwipeRefreshLayout) findViewById(R.id.srl_refresh);
+        swipeRefreshLayout.setColorSchemeResources(R.color.colorPrimary, R.color.colorAccent);
         showProgressDialog();
         SharedPreferences defaultSharedPreferences = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
-        String weatherData = defaultSharedPreferences.getString("weather", null);
-        if(weatherData != null) {
+        String weatherData = defaultSharedPreferences.getString(Constant.SHARED_PREFERENCE_WEATHER_KEY, null);
+        if (weatherData != null) {
             Weather weather = Utility.handleWeatherResponse(weatherData);
+            if (weather != null) {
+                currentWeatherId = weather.basic.weatherId;
+            }
             showWeatherInfo(weather);
         } else {
-            String weatherId = getIntent().getStringExtra("weatherId");
-            requestWeather(weatherId);
+            currentWeatherId = getIntent().getStringExtra(Constant.BUNDLE_WEATHER_ID_KEY);
+            requestWeather(currentWeatherId);
         }
-        String backgroundImgUrl = defaultSharedPreferences.getString("backgroundImg", null);
+        String backgroundImgUrl = defaultSharedPreferences.getString(Constant.SHARED_PREFERENCE_BACKGROUND_IMG_URL_KEY, null);
         if (backgroundImgUrl != null) {
             updateBackgroundImage(backgroundImgUrl);
         } else {
             getBackgroundImage();
         }
+
+        btnChooseCity.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                drawerLayout.openDrawer(GravityCompat.START);
+            }
+        });
+        swipeRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
+            @Override
+            public void onRefresh() {
+                requestWeather(currentWeatherId);
+            }
+        });
+        Intent intent = new Intent(this, AutoUpdateService.class);
+        startService(intent);
     }
 
     private void getBackgroundImage() {
@@ -104,7 +134,7 @@ public class WeatherActivity extends AppCompatActivity {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        Toast.makeText(getApplicationContext(), "获取图片失败", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(getApplicationContext(), getString(R.string.get_image_failed), Toast.LENGTH_SHORT).show();
                     }
                 });
             }
@@ -113,7 +143,7 @@ public class WeatherActivity extends AppCompatActivity {
             public void onResponse(Call call, Response response) throws IOException {
                 if (response != null) {
                     final String responseData = response.body().string();
-                    if(!TextUtils.isEmpty(responseData)) {
+                    if (!TextUtils.isEmpty(responseData)) {
                         runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
@@ -121,7 +151,7 @@ public class WeatherActivity extends AppCompatActivity {
                             }
                         });
                         SharedPreferences.Editor edit = PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).edit();
-                        edit.putString("backgroundImg", responseData);
+                        edit.putString(Constant.SHARED_PREFERENCE_BACKGROUND_IMG_URL_KEY, responseData);
                         edit.apply();
                         return;
                     }
@@ -129,11 +159,17 @@ public class WeatherActivity extends AppCompatActivity {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        Toast.makeText(getApplicationContext(), "获取图片失败", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(getApplicationContext(), getString(R.string.get_image_failed), Toast.LENGTH_SHORT).show();
                     }
                 });
             }
         });
+    }
+
+    public void updateWeather(String weatherId) {
+        drawerLayout.closeDrawers();
+        swipeRefreshLayout.setRefreshing(true);
+        requestWeather(weatherId);
     }
 
     private void updateBackgroundImage(String url) {
@@ -148,7 +184,8 @@ public class WeatherActivity extends AppCompatActivity {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        Toast.makeText(getApplicationContext(), "获取天气信息失败", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(getApplicationContext(), getString(R.string.get_weather_info_failed), Toast.LENGTH_SHORT).show();
+                        swipeRefreshLayout.setRefreshing(false);
                     }
                 });
             }
@@ -166,10 +203,11 @@ public class WeatherActivity extends AppCompatActivity {
                             @Override
                             public void run() {
                                 showWeatherInfo(weather);
+                                swipeRefreshLayout.setRefreshing(false);
                             }
                         });
                         SharedPreferences.Editor editor = PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).edit();
-                        editor.putString("weather", responseData);
+                        editor.putString(Constant.SHARED_PREFERENCE_WEATHER_KEY, responseData);
                         editor.apply();
                         return;
                     }
@@ -177,7 +215,8 @@ public class WeatherActivity extends AppCompatActivity {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        Toast.makeText(getApplicationContext(), "获取天气信息失败", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(getApplicationContext(), getString(R.string.get_weather_info_failed), Toast.LENGTH_SHORT).show();
+                        swipeRefreshLayout.setRefreshing(false);
                     }
                 });
             }
@@ -195,10 +234,11 @@ public class WeatherActivity extends AppCompatActivity {
                 } else {
                     tvUpdateTime.setVisibility(View.GONE);
                 }
+                currentWeatherId = basic.weatherId;
             }
             Now now = weather.now;
             if (now != null) {
-                tvDegree.setText(now.temperature + "°Ｃ");
+                tvDegree.setText(getString(R.string.degree_unit, now.temperature));
                 Now.More more = now.more;
                 if (more != null) {
                     tvWeatherInfo.setText(more.info);
@@ -223,11 +263,11 @@ public class WeatherActivity extends AppCompatActivity {
                 tvPM25.setText(weather.aqi.city.pm25);
             }
 
-            String comfort = "舒适度：" + weather.suggestion.comfort.info;
-            String carwash = "洗车指数：" + weather.suggestion.carWash.info;
-            String sport = "运动建议：" + weather.suggestion.sport.info;
+            String comfort = getString(R.string.comfort_level, weather.suggestion.comfort.info);
+            String carWash = getString(R.string.wash_car_level, weather.suggestion.carWash.info);
+            String sport = getString(R.string.sport_level, weather.suggestion.sport.info);
             tvComfort.setText(comfort);
-            tvCarWash.setText(carwash);
+            tvCarWash.setText(carWash);
             tvSport.setText(sport);
             svWeather.setVisibility(View.VISIBLE);
         }
@@ -237,7 +277,7 @@ public class WeatherActivity extends AppCompatActivity {
     private void showProgressDialog() {
         if (progressDialog == null) {
             progressDialog = new ProgressDialog(this);
-            progressDialog.setMessage("正在加载数据");
+            progressDialog.setMessage(getString(R.string.loading_data));
             progressDialog.setCanceledOnTouchOutside(false);
         }
         progressDialog.show();
